@@ -48,6 +48,16 @@ Restart n8n after installation if the node does not appear immediately.
 
 Member roles: `super_admin`, `admin`, `developer`, `viewer`, `finance`.
 
+## Trigger events
+
+Use the **HookDeploy Trigger** node and choose an **Event** plus **Endpoint ID**:
+
+| Event | Webhook payload `event` | Description |
+| --- | --- | --- |
+| **New Webhook Received** | `request.received` | A webhook was captured on the endpoint |
+| **Forwarding Succeeded** | `forwarding.succeeded` | HookDeploy successfully forwarded a webhook to a destination |
+| **Forwarding Failed** | `forwarding.failed` | HookDeploy failed to forward a webhook to a destination |
+
 ## Development
 
 ```bash
