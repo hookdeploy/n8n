@@ -1,15 +1,22 @@
 # n8n-nodes-hookdeploy
 
+**Verified by n8n** — available on n8n Cloud and all self-hosted instances.
+
 [n8n](https://n8n.io) community node for [HookDeploy](https://hookdeploy.dev) — webhook capture, inspection, routing, and private tunnel infrastructure. Use it in workflows to manage endpoints, inspect captured webhook requests, replay traffic, and administer organization members.
-
-## Prerequisites
-
-- **Self-hosted n8n** (Docker, npm, or desktop). Community nodes installed via Settings → Community Nodes require a self-hosted instance.
-- **n8n Cloud** does not support unverified community nodes; this package is not available there until published and verified.
 
 ## Installation
 
-In your n8n instance, open **Settings → Community Nodes**, choose **Install**, and enter:
+### Option 1: n8n nodes panel (recommended)
+
+On **n8n Cloud** or any **self-hosted** instance:
+
+1. Open the node picker in the workflow editor.
+2. Search for **HookDeploy**.
+3. Install with one click — verified nodes are available to all users.
+
+### Option 2: Community Nodes (self-hosted manual install)
+
+For self-hosted instances that prefer manual installation, open **Settings → Community Nodes**, choose **Install**, and enter:
 
 ```
 n8n-nodes-hookdeploy
