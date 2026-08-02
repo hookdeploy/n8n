@@ -1,5 +1,7 @@
 import { NodeConnectionTypes, type INodeType, type INodeTypeDescription } from 'n8n-workflow';
+import { destinationDescription } from './resources/destination';
 import { endpointDescription } from './resources/endpoint';
+import { incidentDescription } from './resources/incident';
 import { memberDescription } from './resources/member';
 import { requestDescription } from './resources/request';
 
@@ -39,8 +41,16 @@ export class HookDeploy implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
+						name: 'Destination',
+						value: 'destination',
+					},
+					{
 						name: 'Endpoint',
 						value: 'endpoint',
+					},
+					{
+						name: 'Incident',
+						value: 'incident',
 					},
 					{
 						name: 'Member',
@@ -53,7 +63,9 @@ export class HookDeploy implements INodeType {
 				],
 				default: 'endpoint',
 			},
+			...destinationDescription,
 			...endpointDescription,
+			...incidentDescription,
 			...requestDescription,
 			...memberDescription,
 		],
