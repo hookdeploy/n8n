@@ -6,11 +6,23 @@ import type {
 } from 'n8n-workflow';
 
 const SUBSCRIPTIONS_URL = 'https://api.hookdeploy.dev/v1/subscriptions';
+const INCIDENT_SUBSCRIPTIONS_URL = 'https://api.hookdeploy.dev/v1/incident-subscriptions';
 
 export type HookDeployTriggerEventType =
 	| 'request.received'
 	| 'forwarding.succeeded'
-	| 'forwarding.failed';
+	| 'forwarding.failed'
+	| 'incident.created'
+	| 'incident.investigating'
+	| 'incident.resolved';
+
+function isIncidentEvent(eventType: HookDeployTriggerEventType): boolean {
+	return (
+		eventType === 'incident.created' ||
+		eventType === 'incident.investigating' ||
+		eventType === 'incident.resolved'
+	);
+}
 
 function getSubscriptionId(staticData: IDataObject): string | undefined {
 	const subscriptionId = staticData.subscriptionId;
@@ -19,20 +31,36 @@ function getSubscriptionId(staticData: IDataObject): string | undefined {
 		: undefined;
 }
 
+function extractSubscriptionId(response: IDataObject): string | undefined {
+	if (typeof response.id === 'string') {
+		return response.id;
+	}
+	const nested = response.data as IDataObject | undefined;
+	if (typeof nested?.id === 'string') {
+		return nested.id;
+	}
+	return undefined;
+}
+
 function subscriptionMatchesParameters(
 	staticData: IDataObject,
-	endpointId: string,
 	eventType: HookDeployTriggerEventType,
+	endpointId?: string,
 ): boolean {
 	const subscriptionId = getSubscriptionId(staticData);
 	if (!subscriptionId) {
 		return false;
 	}
 
-	return (
-		staticData.endpointId === endpointId &&
-		staticData.eventType === eventType
-	);
+	if (staticData.eventType !== eventType) {
+		return false;
+	}
+
+	if (isIncidentEvent(eventType)) {
+		return true;
+	}
+
+	return staticData.endpointId === endpointId;
 }
 
 export function createHookDeployWebhookMethods() {
@@ -40,10 +68,14 @@ export function createHookDeployWebhookMethods() {
 		default: {
 			async checkExists(this: IHookFunctions): Promise<boolean> {
 				const staticData = this.getWorkflowStaticData('node');
-				const endpointId = this.getNodeParameter('endpointId') as string;
 				const eventType = this.getNodeParameter('event') as HookDeployTriggerEventType;
 
-				return subscriptionMatchesParameters(staticData, endpointId, eventType);
+				if (isIncidentEvent(eventType)) {
+					return subscriptionMatchesParameters(staticData, eventType);
+				}
+
+				const endpointId = this.getNodeParameter('endpointId') as string;
+				return subscriptionMatchesParameters(staticData, eventType, endpointId);
 			},
 
 			async create(this: IHookFunctions): Promise<boolean> {
@@ -52,43 +84,48 @@ export function createHookDeployWebhookMethods() {
 					throw new Error('HookDeploy trigger webhook URL is unavailable.');
 				}
 
-				const endpointId = this.getNodeParameter('endpointId') as string;
 				const eventType = this.getNodeParameter('event') as HookDeployTriggerEventType;
+				const incidentEvent = isIncidentEvent(eventType);
 
 				const response = (await this.helpers.httpRequestWithAuthentication.call(
 					this,
 					'hookDeployApi',
 					{
 						method: 'POST',
-						url: SUBSCRIPTIONS_URL,
+						url: incidentEvent ? INCIDENT_SUBSCRIPTIONS_URL : SUBSCRIPTIONS_URL,
 						headers: {
 							'Content-Type': 'application/json',
 							Accept: 'application/json',
 						},
-						body: {
-							endpoint_id: endpointId,
-							target_url: webhookUrl,
-							platform: 'n8n',
-							event_type: eventType,
-						},
+						body: incidentEvent
+							? {
+									target_url: webhookUrl,
+									platform: 'n8n',
+									event_type: eventType,
+								}
+							: {
+									endpoint_id: this.getNodeParameter('endpointId') as string,
+									target_url: webhookUrl,
+									platform: 'n8n',
+									event_type: eventType,
+								},
 					},
 				)) as IDataObject;
 
-				const subscriptionId =
-					typeof response.id === 'string'
-						? response.id
-						: typeof (response.data as IDataObject | undefined)?.id === 'string'
-							? ((response.data as IDataObject).id as string)
-							: undefined;
-
+				const subscriptionId = extractSubscriptionId(response);
 				if (!subscriptionId) {
 					throw new Error('HookDeploy subscription response did not include an id.');
 				}
 
 				const staticData = this.getWorkflowStaticData('node');
 				staticData.subscriptionId = subscriptionId;
-				staticData.endpointId = endpointId;
 				staticData.eventType = eventType;
+
+				if (incidentEvent) {
+					delete staticData.endpointId;
+				} else {
+					staticData.endpointId = this.getNodeParameter('endpointId') as string;
+				}
 
 				return true;
 			},
@@ -96,12 +133,17 @@ export function createHookDeployWebhookMethods() {
 			async delete(this: IHookFunctions): Promise<boolean> {
 				const staticData = this.getWorkflowStaticData('node');
 				const subscriptionId = getSubscriptionId(staticData);
+				const eventType = staticData.eventType as HookDeployTriggerEventType | undefined;
+				const baseUrl =
+					eventType && isIncidentEvent(eventType)
+						? INCIDENT_SUBSCRIPTIONS_URL
+						: SUBSCRIPTIONS_URL;
 
 				if (subscriptionId) {
 					try {
 						await this.helpers.httpRequestWithAuthentication.call(this, 'hookDeployApi', {
 							method: 'DELETE',
-							url: `${SUBSCRIPTIONS_URL}/${subscriptionId}`,
+							url: `${baseUrl}/${subscriptionId}`,
 							headers: {
 								Accept: 'application/json',
 							},

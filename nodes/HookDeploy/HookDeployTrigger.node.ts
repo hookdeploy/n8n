@@ -9,6 +9,12 @@ import {
 	handleHookDeployWebhook,
 } from './shared/hookDeployWebhookTrigger';
 
+const endpointScopedEvents = [
+	'forwarding.failed',
+	'forwarding.succeeded',
+	'request.received',
+];
+
 export class HookDeployTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'HookDeploy Trigger',
@@ -16,8 +22,9 @@ export class HookDeployTrigger implements INodeType {
 		icon: { light: 'file:hookdeploy.svg', dark: 'file:hookdeploy.dark.svg' },
 		group: ['trigger'],
 		version: 1,
-		subtitle: '={{$parameter["event"] + ": " + $parameter["endpointId"]}}',
-		description: 'Triggers when HookDeploy sends webhook events for an endpoint',
+		subtitle:
+			'={{$parameter["event"] + ($parameter["endpointId"] ? ": " + $parameter["endpointId"] : "")}}',
+		description: 'Triggers on HookDeploy webhook and incident events',
 		defaults: {
 			name: 'HookDeploy Trigger',
 		},
@@ -58,6 +65,24 @@ export class HookDeployTrigger implements INodeType {
 							'Triggers when HookDeploy successfully forwards a webhook to a destination',
 					},
 					{
+						name: 'Incident Created',
+						value: 'incident.created',
+						action: 'Incident Created',
+						description: 'Triggers when HookDeploy opens a new incident from forward failures',
+					},
+					{
+						name: 'Incident Investigating',
+						value: 'incident.investigating',
+						action: 'Incident Investigating',
+						description: 'Triggers when an incident is marked as Investigating',
+					},
+					{
+						name: 'Incident Resolved',
+						value: 'incident.resolved',
+						action: 'Incident Resolved',
+						description: 'Triggers when an incident is marked Resolved',
+					},
+					{
 						name: 'New Webhook Received',
 						value: 'request.received',
 						action: 'New Webhook Received',
@@ -73,6 +98,11 @@ export class HookDeployTrigger implements INodeType {
 				required: true,
 				default: '',
 				description: 'The HookDeploy endpoint to watch for events',
+				displayOptions: {
+					show: {
+						event: endpointScopedEvents,
+					},
+				},
 			},
 		],
 		usableAsTool: true,
