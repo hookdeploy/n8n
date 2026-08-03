@@ -59,5 +59,8 @@
 		"n8n-workflow": {
 			"optional": true
 		}
+	},
+	"dependencies": {
+		"zod": "^3.24.2"
 	}
 }

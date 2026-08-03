@@ -4,6 +4,7 @@ import type {
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
+import { parseHookDeployWebhookBody } from './hookDeployWebhookValidation';
 
 const SUBSCRIPTIONS_URL = 'https://api.hookdeploy.dev/v1/subscriptions';
 
@@ -135,13 +136,19 @@ export async function handleHookDeployWebhook(
 		};
 	}
 
-	if (typeof body === 'object' && !Array.isArray(body)) {
+	const parsed = parseHookDeployWebhookBody(body);
+	if (!parsed.success) {
+		this.logger.warn(
+			`Ignored HookDeploy webhook with invalid payload: ${parsed.error.issues
+				.map((issue) => issue.message)
+				.join('; ')}`,
+		);
 		return {
-			workflowData: [this.helpers.returnJsonArray([body as IDataObject])],
+			workflowData: [this.helpers.returnJsonArray([])],
 		};
 	}
 
 	return {
-		workflowData: [this.helpers.returnJsonArray([{ body }])],
+		workflowData: [this.helpers.returnJsonArray([parsed.data as IDataObject])],
 	};
 }
