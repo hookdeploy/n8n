@@ -18,7 +18,7 @@
 		"url": "https://github.com/hookdeploy/n8n"
 	},
 	"scripts": {
-		"build": "n8n-node build",
+		"build": "n8n-node build && node scripts/bundle-validation.mjs",
 		"build:watch": "tsc --watch",
 		"dev": "node scripts/dev.mjs",
 		"dev:latest": "n8n-node dev",
@@ -46,11 +46,13 @@
 	},
 	"devDependencies": {
 		"@n8n/node-cli": "0.41.2",
+		"esbuild": "^0.28.1",
 		"eslint": "9.29.0",
 		"n8n-workflow": "^2.16.0",
 		"prettier": "3.6.2",
 		"release-it": "^19.0.4",
-		"typescript": "5.9.2"
+		"typescript": "5.9.2",
+		"zod": "^3.25.67"
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"
