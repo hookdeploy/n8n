@@ -38,7 +38,8 @@
 		],
 		"nodes": [
 			"dist/nodes/HookDeploy/HookDeploy.node.js",
-			"dist/nodes/HookDeploy/HookDeployTrigger.node.js"
+			"dist/nodes/HookDeploy/HookDeployTrigger.node.js",
+			"dist/nodes/HookDeploy/HookDeployIncidentTrigger.node.js"
 		]
 	},
 	"engines": {
