@@ -20,7 +20,7 @@ function getSubscriptionId(staticData: IDataObject): string | undefined {
 		: undefined;
 }
 
-function subscriptionMatchesParameters(
+export function subscriptionMatchesParameters(
 	staticData: IDataObject,
 	endpointId: string,
 	eventType: HookDeployTriggerEventType,
