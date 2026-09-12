@@ -4,7 +4,7 @@ import {
 	HOOKDEPLOY_INCIDENT_TRIGGER_EVENTS,
 	isHookDeployIncidentEvent,
 	parseHookDeployIncidentWebhookBody,
-} from './hookDeployIncidentWebhookValidation';
+} from '../nodes/HookDeploy/shared/hookDeployIncidentWebhookValidation';
 
 test('parseHookDeployIncidentWebhookBody accepts incident lifecycle payloads', () => {
 	const parsed = parseHookDeployIncidentWebhookBody({

@@ -2,9 +2,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-const endpointSource = readFileSync(new URL('./endpoint/index.ts', import.meta.url), 'utf8');
-const requestSource = readFileSync(new URL('./request/index.ts', import.meta.url), 'utf8');
-const memberSource = readFileSync(new URL('./member/index.ts', import.meta.url), 'utf8');
+const endpointSource = readFileSync(
+	new URL('../nodes/HookDeploy/resources/endpoint/index.ts', import.meta.url),
+	'utf8',
+);
+const requestSource = readFileSync(
+	new URL('../nodes/HookDeploy/resources/request/index.ts', import.meta.url),
+	'utf8',
+);
+const memberSource = readFileSync(
+	new URL('../nodes/HookDeploy/resources/member/index.ts', import.meta.url),
+	'utf8',
+);
 
 test('endpoint resource routes create/list/pause/resume to HookDeploy API paths', () => {
 	assert.match(endpointSource, /method: 'POST',\s*url: '\/endpoints'/);

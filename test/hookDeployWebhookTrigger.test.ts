@@ -5,7 +5,7 @@ import {
 	createHookDeployWebhookMethods,
 	handleHookDeployWebhook,
 	subscriptionMatchesParameters,
-} from './hookDeployWebhookTrigger';
+} from '../nodes/HookDeploy/shared/hookDeployWebhookTrigger';
 
 test('subscriptionMatchesParameters requires stored subscription metadata', () => {
 	assert.equal(
@@ -53,7 +53,11 @@ test('handleHookDeployWebhook returns parsed payload for valid webhook bodies', 
 
 	const result = await handleHookDeployWebhook.call(ctx);
 	assert.equal(Array.isArray(result.workflowData?.[0]), true);
-	assert.equal((result.workflowData?.[0] as Array<{ hookdeploy: { request_id: string } }>)[0].hookdeploy.request_id, 'req-1');
+	assert.equal(
+		(result.workflowData?.[0] as Array<{ hookdeploy: { request_id: string } }>)[0].hookdeploy
+			.request_id,
+		'req-1',
+	);
 });
 
 test('createHookDeployWebhookMethods posts subscription create payload to HookDeploy API', async () => {
@@ -69,7 +73,10 @@ test('createHookDeployWebhookMethods posts subscription create payload to HookDe
 		},
 		getNodeWebhookUrl: () => 'https://n8n.example/webhook/abc',
 		helpers: {
-			httpRequestWithAuthentication: async (_cred: string, options: { method?: string; url?: string; body?: unknown }) => {
+			httpRequestWithAuthentication: async (
+				_cred: string,
+				options: { method?: string; url?: string; body?: unknown },
+			) => {
 				requests.push(options);
 				return { id: 'sub-999' };
 			},
@@ -107,7 +114,10 @@ test('createHookDeployWebhookMethods deletes stored subscription on teardown', a
 	const ctx = {
 		getWorkflowStaticData: () => staticData,
 		helpers: {
-			httpRequestWithAuthentication: async (_cred: string, options: { method?: string; url?: string }) => {
+			httpRequestWithAuthentication: async (
+				_cred: string,
+				options: { method?: string; url?: string },
+			) => {
 				requests.push(options);
 				return {};
 			},

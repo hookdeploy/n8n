@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import {
 	HOOKDEPLOY_TRIGGER_EVENTS,
 	parseHookDeployWebhookBody,
-} from './hookDeployWebhookValidation';
+} from '../nodes/HookDeploy/shared/hookDeployWebhookValidation';
 
 test('parseHookDeployWebhookBody accepts hookdeploy metadata envelope', () => {
 	const parsed = parseHookDeployWebhookBody({
