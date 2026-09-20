@@ -4,20 +4,26 @@ import type {
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
-import { parseHookDeployWebhookBody } from './hookDeployWebhookValidation';
+import {
+	isHookDeployIncidentEvent,
+	parseHookDeployWebhookBody,
+	type HookDeployTriggerEventType,
+} from './hookDeployWebhookValidation';
 
 const SUBSCRIPTIONS_URL = 'https://api.hookdeploy.dev/v1/subscriptions';
+const INCIDENT_SUBSCRIPTIONS_URL = 'https://api.hookdeploy.dev/v1/incident-subscriptions';
 
-export type HookDeployTriggerEventType =
-	| 'request.received'
-	| 'forwarding.succeeded'
-	| 'forwarding.failed';
+export type { HookDeployTriggerEventType };
 
 function getSubscriptionId(staticData: IDataObject): string | undefined {
 	const subscriptionId = staticData.subscriptionId;
 	return typeof subscriptionId === 'string' && subscriptionId.length > 0
 		? subscriptionId
 		: undefined;
+}
+
+function subscriptionsUrlForEvent(eventType: string): string {
+	return isHookDeployIncidentEvent(eventType) ? INCIDENT_SUBSCRIPTIONS_URL : SUBSCRIPTIONS_URL;
 }
 
 export function subscriptionMatchesParameters(
@@ -30,10 +36,11 @@ export function subscriptionMatchesParameters(
 		return false;
 	}
 
-	return (
-		staticData.endpointId === endpointId &&
-		staticData.eventType === eventType
-	);
+	if (isHookDeployIncidentEvent(eventType)) {
+		return staticData.eventType === eventType;
+	}
+
+	return staticData.endpointId === endpointId && staticData.eventType === eventType;
 }
 
 export function createHookDeployWebhookMethods() {
@@ -41,8 +48,10 @@ export function createHookDeployWebhookMethods() {
 		default: {
 			async checkExists(this: IHookFunctions): Promise<boolean> {
 				const staticData = this.getWorkflowStaticData('node');
-				const endpointId = this.getNodeParameter('endpointId') as string;
 				const eventType = this.getNodeParameter('event') as HookDeployTriggerEventType;
+				const endpointId = isHookDeployIncidentEvent(eventType)
+					? ''
+					: (this.getNodeParameter('endpointId') as string);
 
 				return subscriptionMatchesParameters(staticData, endpointId, eventType);
 			},
@@ -53,25 +62,34 @@ export function createHookDeployWebhookMethods() {
 					throw new Error('HookDeploy trigger webhook URL is unavailable.');
 				}
 
-				const endpointId = this.getNodeParameter('endpointId') as string;
 				const eventType = this.getNodeParameter('event') as HookDeployTriggerEventType;
+				const incidentEvent = isHookDeployIncidentEvent(eventType);
+				const endpointId = incidentEvent
+					? undefined
+					: (this.getNodeParameter('endpointId') as string);
 
 				const response = (await this.helpers.httpRequestWithAuthentication.call(
 					this,
 					'hookDeployApi',
 					{
 						method: 'POST',
-						url: SUBSCRIPTIONS_URL,
+						url: subscriptionsUrlForEvent(eventType),
 						headers: {
 							'Content-Type': 'application/json',
 							Accept: 'application/json',
 						},
-						body: {
-							endpoint_id: endpointId,
-							target_url: webhookUrl,
-							platform: 'n8n',
-							event_type: eventType,
-						},
+						body: incidentEvent
+							? {
+									target_url: webhookUrl,
+									platform: 'n8n',
+									event_type: eventType,
+								}
+							: {
+									endpoint_id: endpointId,
+									target_url: webhookUrl,
+									platform: 'n8n',
+									event_type: eventType,
+								},
 					},
 				)) as IDataObject;
 
@@ -88,8 +106,12 @@ export function createHookDeployWebhookMethods() {
 
 				const staticData = this.getWorkflowStaticData('node');
 				staticData.subscriptionId = subscriptionId;
-				staticData.endpointId = endpointId;
 				staticData.eventType = eventType;
+				if (endpointId) {
+					staticData.endpointId = endpointId;
+				} else {
+					delete staticData.endpointId;
+				}
 
 				return true;
 			},
@@ -97,12 +119,14 @@ export function createHookDeployWebhookMethods() {
 			async delete(this: IHookFunctions): Promise<boolean> {
 				const staticData = this.getWorkflowStaticData('node');
 				const subscriptionId = getSubscriptionId(staticData);
+				const eventType =
+					typeof staticData.eventType === 'string' ? staticData.eventType : '';
 
 				if (subscriptionId) {
 					try {
 						await this.helpers.httpRequestWithAuthentication.call(this, 'hookDeployApi', {
 							method: 'DELETE',
-							url: `${SUBSCRIPTIONS_URL}/${subscriptionId}`,
+							url: `${subscriptionsUrlForEvent(eventType)}/${subscriptionId}`,
 							headers: {
 								Accept: 'application/json',
 							},
