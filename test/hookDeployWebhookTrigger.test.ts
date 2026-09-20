@@ -24,6 +24,22 @@ test('subscriptionMatchesParameters requires stored subscription metadata', () =
 		),
 		false,
 	);
+	assert.equal(
+		subscriptionMatchesParameters(
+			{ subscriptionId: 'sub-inc', eventType: 'incident.created' },
+			'',
+			'incident.created',
+		),
+		true,
+	);
+	assert.equal(
+		subscriptionMatchesParameters(
+			{ subscriptionId: 'sub-inc', eventType: 'incident.created' },
+			'',
+			'incident.resolved',
+		),
+		false,
+	);
 });
 
 test('handleHookDeployWebhook returns empty workflow data for invalid payloads', async () => {
@@ -103,6 +119,70 @@ test('createHookDeployWebhookMethods posts subscription create payload to HookDe
 	assert.equal(staticData.subscriptionId, 'sub-999');
 });
 
+test('createHookDeployWebhookMethods posts incident subscriptions without endpoint_id', async () => {
+	const requests: Array<{ method?: string; url?: string; body?: unknown }> = [];
+	const staticData: Record<string, unknown> = {};
+
+	const ctx = {
+		getWorkflowStaticData: () => staticData,
+		getNodeParameter: (name: string) => {
+			if (name === 'event') return 'incident.created';
+			return '';
+		},
+		getNodeWebhookUrl: () => 'https://n8n.example/webhook/abc',
+		helpers: {
+			httpRequestWithAuthentication: async (
+				_cred: string,
+				options: { method?: string; url?: string; body?: unknown },
+			) => {
+				requests.push(options);
+				return { id: 'inc-sub-1' };
+			},
+		},
+	} as unknown as IHookFunctions;
+
+	const methods = createHookDeployWebhookMethods();
+	const created = await methods.default.create.call(ctx);
+	assert.equal(created, true);
+	assert.deepEqual(requests[0], {
+		method: 'POST',
+		url: 'https://api.hookdeploy.dev/v1/incident-subscriptions',
+		headers: {
+			'Content-Type': 'application/json',
+			Accept: 'application/json',
+		},
+		body: {
+			target_url: 'https://n8n.example/webhook/abc',
+			platform: 'n8n',
+			event_type: 'incident.created',
+		},
+	});
+	assert.equal(staticData.subscriptionId, 'inc-sub-1');
+	assert.equal(staticData.endpointId, undefined);
+});
+
+test('handleHookDeployWebhook returns parsed incident lifecycle payloads', async () => {
+	const ctx = {
+		getRequestObject: () => ({
+			body: {
+				incident_id: 'inc-1',
+				organization_id: 'org-1',
+				status: 'investigating',
+				scope: 'destination',
+				event_type: 'incident.investigating',
+			},
+		}),
+		logger: { warn: () => undefined },
+		helpers: { returnJsonArray: (items: unknown[]) => items },
+	} as unknown as IWebhookFunctions;
+
+	const result = await handleHookDeployWebhook.call(ctx);
+	assert.equal(
+		(result.workflowData?.[0] as Array<{ incident_id: string }>)[0].incident_id,
+		'inc-1',
+	);
+});
+
 test('createHookDeployWebhookMethods deletes stored subscription on teardown', async () => {
 	const requests: Array<{ method?: string; url?: string }> = [];
 	const staticData = {
@@ -134,4 +214,35 @@ test('createHookDeployWebhookMethods deletes stored subscription on teardown', a
 		headers: { Accept: 'application/json' },
 	});
 	assert.equal(staticData.subscriptionId, undefined);
+});
+
+test('createHookDeployWebhookMethods deletes incident subscriptions from the incident route', async () => {
+	const requests: Array<{ method?: string; url?: string }> = [];
+	const staticData = {
+		subscriptionId: 'inc-sub-1',
+		eventType: 'incident.resolved',
+	};
+
+	const ctx = {
+		getWorkflowStaticData: () => staticData,
+		helpers: {
+			httpRequestWithAuthentication: async (
+				_cred: string,
+				options: { method?: string; url?: string },
+			) => {
+				requests.push(options);
+				return {};
+			},
+		},
+		logger: { warn: () => undefined },
+	} as unknown as IHookFunctions;
+
+	const methods = createHookDeployWebhookMethods();
+	const deleted = await methods.default.delete.call(ctx);
+	assert.equal(deleted, true);
+	assert.deepEqual(requests[0], {
+		method: 'DELETE',
+		url: 'https://api.hookdeploy.dev/v1/incident-subscriptions/inc-sub-1',
+		headers: { Accept: 'application/json' },
+	});
 });
